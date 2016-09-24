@@ -26,6 +26,7 @@ use App;
 use Session;
 use \Illuminate\Database\Eloquent\Collection;
 use App\Ecommerce\helperFunctions;
+use Symfony\Component\VarDumper\Dumper\DataDumperInterface;
 
 /**
  * @Controller(domain="grace.reset")
@@ -53,12 +54,21 @@ class ProductController extends Controller
 	public function index()
 	{
 		$products = Product::all();
+//		$products = Product::has('prices', 'id')->get();
+		//$items = Product::where('id', '=', 'product_id')->get();
+		//dd($items);
+//		$products = Product::with('prices')->get();
+//		dd($products);
+		$hasPrices = array_has($products, ['prices.price', 'prices.quantity']);
+		dd($hasPrices);
 		$new_products = Product::orderBy('created_at', 'desc')->take(12)->get();
+		//dd($new_products);
 		$get_best_sellers = OrderProduct::select('product_id', \DB::raw('COUNT(product_id) as count'))->groupBy('product_id')->orderBy('count', 'desc')->take(8)->get();
 		$best_sellers = [];
 		foreach($get_best_sellers as $product){
 			$best_sellers[] = $product->product;
 		}
+		//dd($get_best_sellers);
 		//helperFunctions::getPageInfo($sections,$cart,$total);
 		return view('frontend.shop.index', compact('new_products', 'best_sellers', 'sections', 'cart', 'total'));
 	}
@@ -69,7 +79,7 @@ class ProductController extends Controller
 	{
 		$product = Product::findBySlugOrIdOrFail($id);
 
-		$product_categories = $product->categories()->lists('id')->toArray();
+		//$product_categories = $product->categories()->lists('id')->toArray();
 
 		// dd($product, $product->features, $product->categories, $product->prices, $product->options, $product->variants);
 		$similair = Category::find($product_categories[array_rand($product_categories)])->products()->whereNotIn('id', [$id])->orderByRaw('RAND()')->take(6)->get();
@@ -79,8 +89,6 @@ class ProductController extends Controller
 
 	public function store(Request $request, Price $price)
 	{
-
-
 		/**
 		 * Validate the submitted Data
 		 */
@@ -110,49 +118,62 @@ class ProductController extends Controller
 		$request->file('thumbnail')->move($dest, $name);
 		$name2 = str_random(11) . '_' . $request->file('thumbnail2')->getClientOriginalName();
 		$request->file('thumbnail2')->move($dest, $name2);
+		//$name3  = str_random(11) . '_' . $request->file('thumbnail3')->getClientOriginalName();
+		//$request->file('thumbnail3')->move($dest, $name3);
 	$input = Input::all();
 	$product = $request->all();
 		$product['thumbnail'] = '/' . $dest . $name;
 		$product['thumbnail2'] = '/' . $dest . $name2;
-
-//dd(Input::all());
-		//$product->prices->price = Input::get('price');
+		//$product['thumbnail3'] = '/' . $dest . $name3;
 
 
-//		$product_description = Input::get('description');
 
 
 		$product = Product::create($product);
-//
-//		//dd($request->all());
-//
-////		$product = App\Models\Product::find(1);
-//
-//		/**
-//		 * Upload Album Photos
-//		 */
-//		if ($request->hasFile('album')) {
-//			foreach ($request->album as $photo) {
-//				if ($photo) {
-//					$name = str_random(11)."_".$photo->getClientOriginalName();
-//					$photo->move($dest, $name);
-//					AlbumPhoto::create([
-//						'product_id' => $product->id,
-//						'photo_src' => "/".$dest.$name,
-//						'alt' => 'alt text',
-//						'caption' => $name,
-//						'photoinfo' => 'information about photo',
-//						'linkto' => null,
-//						'use_main' => 1,
-//						'use_thumb' => 1,
-//						'use_gallery' => 1,
-//
-//					]);
-//				}
-//			}
+
+		//dd($request->all());
+
+
+
+		/**
+		 * Upload Album Photos
+		 */
+		if ($request->hasFile('album')) {
+			foreach ($request->album as $photo) {
+				if ($photo) {
+					$name = str_random(11)."_".$photo->getClientOriginalName();
+					$photo->move($dest, $name);
+					AlbumPhoto::create([
+						'product_id' => $product->id,
+						'photo_src' => "/".$dest.$name,
+						'alt' => 'alt text',
+						'caption' => $name,
+						'photoinfo' => 'information about photo',
+						'linkto' => null,
+						'use_main' => 1,
+						'use_thumb' => 1,
+						'use_gallery' => 1,
+
+					]);
+				}
+			}
+		}
+
+//		foreach ($request->prices as $productPrice)
+//		{
+//			$yeaprice =  new Price([
+//				'title' => $productPrice->title,
+//				'price' => $productPrice->price,
+//				'model' => $productPrice->model,
+//				'sku' => $productPrice->sku,
+//				'upc' => $productPrice->upc,
+//				'quantity' => $productPrice->quantity,
+//				'alt_details' => $productPrice->alt_details,
+//				'product_id' => $product->id
+//			]);
+		//$product->prices()->save($yeaprice);
+//              //dd($price);
 //		}
-
-
 
 		/**
 		 * Linking the categories to the product
@@ -182,58 +203,7 @@ class ProductController extends Controller
 				}
 			}
 		}
-//
-		if ($request->has('prices')){
-			foreach ($request->prices as $pricing) {
-				if (!empty($pricing['name'])) {
-					$price = Price::create([
-						'product_id' => $product->id,
-						'title' => $pricing['title'],
-						'price' => $pricing['price'],
-						'model' => $pricing['model'],
-						'sku' => $pricing['sku'],
-						'upc' => $pricing['upc'],
-						'quantity' => $pricing['quantity'],
-						'alt_details' => $pricing['alt_details']
 
-					]);
-//
-				}
-			}
-		}
-
-
-
-
-//
-//		if ($request->has('prices'))
-//		{
-//
-//			foreach ($request->prices as $pricing)
-//			{
-//
-//				$product_prices_id = $product->id;
-//	            $product_prices_title = Input::get('title');
-//	            $product_prices_price = Input::get('price');
-//	            $product_prices_model = Input::get('model');
-//	            $product_prices_sku = Input::get('sku');
-//	            $product_prices_upc = Input::get('upc');
-//	            $product_prices_quantity = Input::get('quantity');
-//	            $product_prices_alt_details = Input::get('alt_details');
-//
-//	                $product_id = DB::table('prices')->insertGetId([
-//			            'product_id' => $product_prices_id,
-//			            'title' => $product_prices_title,
-//			            'price' => $product_prices_price,
-//			            'model' => $product_prices_model,
-//			            'sku' => $product_prices_sku,
-//			            'upc' => $product_prices_upc,
-//			            'quantity' => $product_prices_quantity,
-//			            'alt_details' =>$product_prices_alt_details
-//		            ]);
-//	        }
-//	    }
-//
 		if(!empty($request->attribute_name)){
 			foreach($request->attribute_name as $key => $item){
 				$productVariant = new ProductVariant();
@@ -242,8 +212,17 @@ class ProductController extends Controller
 				$product->productVariants()->save($productVariant);
 			}
 		}
-//
-//		var_dump($input);
+
+		if(!empty($request->feature_name)){
+			foreach($request->feature_name as $feature){
+				$productFeature = new ProductFeature();
+				$productFeature->feature_name = $feature;
+				$product->productFeatures()->save($productFeature);
+
+			}
+		}
+
+
 		//FlashAlert()->success('Success!', 'The Product Was Successfully Added');
 
 		return \Redirect(getLang() . '/admin/products');
@@ -256,7 +235,7 @@ class ProductController extends Controller
 		 * Validate the submitted Data
 		 */
 		$this->validate($request, [
-			'name' => 'required',
+			//'name' => 'required',
 //			'manufacturer' => 'required',
 //			'price' => 'required',
 //			'details' => 'required',
@@ -407,20 +386,27 @@ class ProductController extends Controller
 		return \Redirect()->back();
 	}
 
-	public function search(Request $request)
+//	public function search(Request $request)
+//	{
+//		if (strtoupper($request->sort) == 'NEWEST') {
+//			$products = Product::where('name', 'like', '%'.$request->q.'%')->orderBy('created_at', 'desc')->paginate(40);
+//		} elseif (strtoupper($request->sort) == 'HIGHEST') {
+//			$products = Product::where('name', 'like', '%'.$request->q.'%')->orderBy('price', 'desc')->paginate(40);
+//		} elseif (strtoupper($request->sort) == 'LOWEST') {
+//			$products = Product::where('name', 'like', '%'.$request->q.'%')->orderBy('price', 'asc')->paginate(40);
+//		} else {
+//			$products = Product::where('name', 'like', '%'.$request->q.'%')->paginate(40);
+//		}
+//		helperFunctions::getPageInfo($sections,$cart,$total);
+//		$query = $request->q;
+//		return view('site.search', compact('sections', 'cart', 'total', 'products', 'query'));
+//	}
+
+	public function input($key = null, $default = null)
 	{
-		if (strtoupper($request->sort) == 'NEWEST') {
-			$products = Product::where('name', 'like', '%'.$request->q.'%')->orderBy('created_at', 'desc')->paginate(40);
-		} elseif (strtoupper($request->sort) == 'HIGHEST') {
-			$products = Product::where('name', 'like', '%'.$request->q.'%')->orderBy('price', 'desc')->paginate(40);
-		} elseif (strtoupper($request->sort) == 'LOWEST') {
-			$products = Product::where('name', 'like', '%'.$request->q.'%')->orderBy('price', 'asc')->paginate(40);
-		} else {
-			$products = Product::where('name', 'like', '%'.$request->q.'%')->paginate(40);
-		}
-		helperFunctions::getPageInfo($sections,$cart,$total);
-		$query = $request->q;
-		return view('site.search', compact('sections', 'cart', 'total', 'products', 'query'));
+		$input = $this->getInputSource()->all();
+
+		return data_get($input, $key, $default);
 	}
 
 	/**
@@ -440,12 +426,12 @@ class ProductController extends Controller
 
 
 
-	public function getTest()
-	{
-//		$products = Product::all()->toArray();
-		$products = Product::orderBy('created_at', 'desc')->get();
-		return view('frontend.shop.testindex');
-	}
+//	public function getTest()
+//	{
+////		$products = Product::all()->toArray();
+//		$products = Product::orderBy('created_at', 'desc')->get();
+//		return view('frontend.shop.testindex');
+//	}
 
 
 }
